@@ -1,8 +1,16 @@
 function startApp() {
   const selectCat = document.querySelector("#categorias");
-  selectCat.addEventListener("change", selectCategory);
+
+  if (selectCat) {
+    selectCat.addEventListener("change", selectCategory);
+    getCategories();
+  }
   const resultCard = document.querySelector("#resultado");
-  getCategories();
+
+  const savedDiv = document.querySelector(".favoritos");
+  if (savedDiv) {
+    getSaveRecipes();
+  }
 
   const modal = new bootstrap.Modal("#modal", {});
 
@@ -54,15 +62,15 @@ function startApp() {
 
       const recipeImg = document.createElement("IMG");
       recipeImg.classList.add("card-img-top");
-      recipeImg.alt = `recipe image ${recipe.strMeal}`;
-      recipeImg.src = recipe.strMealThumb;
+      recipeImg.alt = `recipe image ${recipe.strMeal ?? recipe.title} `;
+      recipeImg.src = recipe.strMealThumb ?? recipe.img;
 
       const recipeCardBody = document.createElement("DIV");
       recipeCardBody.classList.add("card-body");
 
       const recipeHeading = document.createElement("H3");
       recipeHeading.classList.add("card-title", "mb-3");
-      recipeHeading.textContent = recipe.strMeal;
+      recipeHeading.textContent = recipe.strMeal ?? recipe.title;
 
       const recipeBtn = document.createElement("BUTTON");
       recipeBtn.classList.add("btn", "btn-danger", "w-100");
@@ -70,7 +78,7 @@ function startApp() {
 
       //generate a modal on click, contains recipes info
       recipeBtn.onclick = function () {
-        selectRecipe(recipe.idMeal);
+        selectRecipe(recipe.idMeal ?? recipe.id);
       };
 
       //add card on html
@@ -126,32 +134,96 @@ function startApp() {
       }
     }
     modalBody.appendChild(listGroup);
-    const modalFooter = document.querySelector('.modal-footer')
-    cleanHtml(modalFooter)
+    const modalFooter = document.querySelector(".modal-footer");
+    cleanHtml(modalFooter);
 
     //save and close buttons
 
     const saveBtn = document.createElement("BUTTON");
     saveBtn.classList.add("btn", "btn-danger", "col");
-    saveBtn.textContent = "Save Recipe";
+    saveBtn.textContent = alreadyExists(idMeal)
+      ? "Remove Recipe"
+      : "Save Recipe";
+
+    //save on local storage
+    saveBtn.onclick = function () {
+      if (alreadyExists(idMeal)) {
+        deleteSaved(idMeal);
+        saveBtn.textContent = "Save Recipe";
+        alertToast("Recipe removed successfuly");
+        return;
+      }
+
+      saveRecipe({
+        id: recipe.idMeal,
+        title: recipe.strMeal,
+        img: recipe.strMealThumb,
+      });
+      saveBtn.textContent = "Remove Recipe";
+      alertToast("Recipe saved successfuly");
+    };
 
     const closeBtn = document.createElement("BUTTON");
     closeBtn.classList.add("btn", "btn-secondary", "col");
     closeBtn.textContent = "Close";
-    closeBtn.onclick = function (){
-      modal.hide()
-    }
+    closeBtn.onclick = function () {
+      modal.hide();
+    };
 
-    modalFooter.appendChild(saveBtn)
-    modalFooter.appendChild(closeBtn)
+    modalFooter.appendChild(saveBtn);
+    modalFooter.appendChild(closeBtn);
 
     modal.show();
+  }
+
+  function saveRecipe(recipe) {
+    const savedRecipes = JSON.parse(localStorage.getItem("savedRecipes")) ?? [];
+    localStorage.setItem(
+      "savedRecipes",
+      JSON.stringify([...savedRecipes, recipe])
+    );
+  }
+  function deleteSaved(id) {
+    const savedRecipes = JSON.parse(localStorage.getItem("savedRecipes")) ?? [];
+    //retorna resultado diferente do id passado(que foi excluído)
+    const newSaved = savedRecipes.filter((saved) => saved.id !== id);
+
+    localStorage.setItem("savedRecipes", JSON.stringify(newSaved));
+  }
+
+  function alreadyExists(id) {
+    const savedRecipes = JSON.parse(localStorage.getItem("savedRecipes")) ?? [];
+    //itera sobre o objeto e busca se ja tem um objeto com esse id
+    return savedRecipes.some((saved) => saved.id === id);
+  }
+
+  function getSaveRecipes() {
+    const savedRecipes = JSON.parse(localStorage.getItem("savedRecipes")) ?? [];
+    console.log(savedRecipes);
+    if (savedRecipes.length) {
+      showRecipes(savedRecipes);
+      return;
+    }
+    const noSave = document.createElement("P");
+    noSave.textContent = "You don't have any saved recipes";
+    noSave.classList.add("fs-4", "text-center", "font-bold", "mt-5");
+    savedDiv.appendChild(noSave);
   }
 
   function cleanHtml(selector) {
     while (selector.firstChild) {
       selector.removeChild(selector.firstChild);
     }
+  }
+
+  function alertToast(message) {
+    const toastDiv = document.querySelector("#toast");
+    const toastBody = document.querySelector(".toast-body");
+    const toast = new bootstrap.Toast(toastDiv);
+
+    toastBody.textContent = message;
+
+    toast.show();
   }
 }
 
